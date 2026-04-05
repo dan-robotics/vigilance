@@ -40,21 +40,12 @@ jobs:
         run: brew install libpcap
 
       - name: Create GeoIP placeholder
-        run: python3 -c "open('src-tauri/resources/GeoLite2-Country.mmdb', 'wb').write(b'\x00' * 64)"
+        shell: bash
+        run: dd if=/dev/zero bs=1 count=64 2>/dev/null > src-tauri/resources/GeoLite2-Country.mmdb || python3 -c "open('src-tauri/resources/GeoLite2-Country.mmdb','wb').write(bytes(64))"
 
-      - name: Create empty config.json
-        run: >
-          python3 -c "
-          import json;
-          config = {
-            'abuseipdb_key': None,
-            'abuseipdb_enabled': False,
-            'cache_hours': 24,
-            'threat_score_red': 50,
-            'threat_score_yellow': 20
-          };
-          open('src-tauri/resources/config.json', 'w').write(json.dumps(config))
-          "
+      - name: Create config.json with API key from secret
+        shell: bash
+        run: echo '{"abuseipdb_key":"${{ secrets.ABUSEIPDB_KEY }}","abuseipdb_enabled":true,"cache_hours":24,"threat_score_red":50,"threat_score_yellow":20}' > src-tauri/resources/config.json
 
       - name: Install frontend dependencies
         run: npm install
