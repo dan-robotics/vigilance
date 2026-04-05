@@ -29,7 +29,7 @@
 
 <h3>Clone the repository</h3>
 
-<pre><code>git clone &lt;your-repo-url&gt;
+<pre><code>git clone https://github.com/dan-robotics/vigilance
 cd vigilance
 </code></pre>
 
