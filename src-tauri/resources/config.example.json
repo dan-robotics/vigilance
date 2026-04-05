@@ -1,0 +1,7 @@
+{
+  "abuseipdb_key": "YOUR_ABUSEIPDB_KEY_HERE",
+  "abuseipdb_enabled": true,
+  "cache_hours": 24,
+  "threat_score_red": 50,
+  "threat_score_yellow": 20
+}
