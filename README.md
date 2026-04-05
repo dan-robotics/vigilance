@@ -1,85 +1,231 @@
-<h1>Vigilance — Network Firewall Monitor</h1>
+# 🐾 Vigilance — Network Firewall Monitor
 
-<p>Vigilance is a free, open-source, cross-platform network firewall monitor. It provides real-time connection visibility, threat intelligence enrichment, and on-demand blocking capabilities.</p>
+> Free, open-source, cross-platform network firewall monitor for Windows and macOS.
 
-<p>Built with Rust for the backend packet engine, and Tauri + React + TypeScript for the frontend UI.</p>
+![License](https://img.shields.io/badge/license-GPL--v3-blue)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
+![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange)
+![UI](https://img.shields.io/badge/UI-Tauri%20%2B%20React-cyan)
 
-<h2>Core Features</h2>
+---
 
-<ul>
-  <li><strong>Live Connection Table</strong>: View real-time active network connections on your machine.</li>
-  <li><strong>Process Identification</strong>: See exactly which application (PID / process name) is making the connection.</li>
-  <li><strong>Geo-IP Enrichment</strong>: Automatically resolve remote IP addresses to their country of origin using MaxMind GeoLite2.</li>
-  <li><strong>Threat Intelligence</strong>: Integrates with AbuseIPDB to flag known malicious IPs and assign a threat score from 0 to 100%.</li>
-  <li><strong>One-Click Blocking</strong>: Instantly sever and block connections using native firewall integration, including Windows Defender Firewall / netsh.</li>
-  <li><strong>Advanced Filtering</strong>: Filter traffic by state (ESTABLISHED, LISTEN, etc.), hide local/loopback traffic, or isolate flagged threats.</li>
-</ul>
+## What is Vigilance?
 
-<h2>Prerequisites</h2>
+Vigilance gives you **full visibility into every network connection on your machine** — which process made it, where it is going, what country it is in, and whether the remote IP has been flagged as malicious.
 
-<p>To compile and build this project locally, you need:</p>
+It provides capabilities previously only available in expensive commercial tools like LittleSnitch ($70) or GlassWire Pro ($40+/year) — **completely free for home users**.
 
-<ul>
-  <li><a href="https://nodejs.org/">Node.js</a> (LTS)</li>
-  <li><a href="https://rustup.rs/">Rust</a> (latest stable)</li>
-  <li>Visual Studio Build Tools with the C++ workload installed (Windows only)</li>
-</ul>
+---
 
-<h2>Installation &amp; Development Setup</h2>
+## Screenshots
 
-<h3>Clone the repository</h3>
+> Real-time connection table with process names, GeoIP, threat scores and one-click blocking.
 
-<pre><code>git clone &lt;your-repo-url&gt;
+---
+
+## Features
+
+| Feature | Description |
+|---|---|
+| 🔴 **Live Connection Table** | Real-time active TCP connections on your machine |
+| 🔍 **Process Identification** | Exact process name and PID for every connection |
+| 🌍 **Geo-IP Enrichment** | Country lookup via MaxMind GeoLite2 (offline, no API calls) |
+| ☁ **Cloudflare Detection** | Automatically identifies Cloudflare Anycast IPs |
+| 🛡 **Threat Intelligence** | AbuseIPDB integration — flags malicious IPs with a 0-100% score |
+| ⛔ **One-Click Blocking** | Instantly block any IP via Windows Firewall (netsh advfirewall) |
+| ✅ **One-Click Unblock** | Instantly revert any block — no manual firewall editing |
+| 🔎 **Advanced Filtering** | Filter by process, IP, port, state, country, or threat score |
+| 📊 **Sortable Columns** | Sort by any column including threat score |
+| 🏠 **Loopback Toggle** | Hide/show local loopback traffic with one click |
+| ⏸ **Pause / Resume** | Freeze the live table to inspect connections without them jumping |
+| 🟡 **Threats Only Mode** | Isolate only flagged IPs instantly |
+
+---
+
+## Platform Support
+
+| Platform | Status | Notes |
+|---|---|---|
+| Windows 10/11 x64 | ✅ Full support | Blocking via Windows Firewall (netsh) |
+| macOS Intel | ✅ Full support | Built via GitHub Actions |
+| macOS Apple Silicon | ✅ Full support | Universal binary |
+| Raspberry Pi 4 ARM64 | 🔜 Planned | Headless web UI daemon |
+| Linux x64 | 🔜 Planned | |
+
+---
+
+## Prerequisites
+
+To build locally you need:
+
+- [Node.js](https://nodejs.org/) LTS
+- [Rust](https://rustup.rs/) latest stable
+- **Windows only**: Visual Studio Build Tools 2022 with the **Desktop development with C++** workload
+- **macOS only**: Xcode Command Line Tools (`xcode-select --install`)
+
+---
+
+## Installation & Setup
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/dan-robotics/vigilance
 cd vigilance
-</code></pre>
+```
 
-<h3>Install frontend dependencies</h3>
+### 2. Install frontend dependencies
 
-<pre><code>npm install
-</code></pre>
+```bash
+npm install
+```
 
-<h3>Configure the application</h3>
+### 3. Download GeoIP database (free)
 
-<ol>
-  <li>Navigate to the <code>resources/</code> folder.</li>
-  <li>Rename or copy <code>config.example.json</code> to <code>config.json</code>.</li>
-  <li>Open <code>config.json</code> and insert your API key:</li>
-</ol>
+- Register at [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data)
+- Download **GeoLite2-Country** (Binary `.mmdb` format)
+- Place the file at:
 
-<pre><code>{
+```
+src-tauri/resources/GeoLite2-Country.mmdb
+```
+
+### 4. Configure API keys (optional)
+
+Copy the example config and add your keys:
+
+```bash
+cp src-tauri/resources/config.example.json src-tauri/resources/config.json
+```
+
+Edit `config.json`:
+
+```json
+{
   "abuseipdb_key": "YOUR_ABUSEIPDB_KEY_HERE",
   "abuseipdb_enabled": true,
   "cache_hours": 24,
   "threat_score_red": 50,
   "threat_score_yellow": 20
 }
-</code></pre>
+```
 
-<h3>Run in development mode</h3>
+> Get a free AbuseIPDB API key at [abuseipdb.com](https://www.abuseipdb.com/register) — 1,000 free checks/day.
+> The app works without a key — threat intel column will show `—` for all IPs.
 
-<pre><code>npm run tauri dev
-</code></pre>
+### 5. Run in development mode
 
-<h2>Building for Production</h2>
+```bash
+npm run tauri dev
+```
 
-<p>To compile the standalone executables and installers, run:</p>
+> **Windows**: Run VS Code or your terminal as Administrator for firewall blocking to work.
 
-<pre><code>npm run tauri build
-</code></pre>
+---
 
-<p>The compiled binaries will be located in:</p>
+## Building for Production
 
-<pre><code>/src-tauri/target/release/bundle/
-</code></pre>
+```bash
+npm run tauri build
+```
 
-<h2>Architecture Overview</h2>
+Output binaries are in:
 
-<ul>
-  <li><strong>Frontend</strong>: React + TypeScript, with styling via standard CSS.</li>
-  <li><strong>Backend</strong>: Rust. Handles system-level queries (<code>netstat</code>), firewall commands (<code>netsh</code>), and asynchronous external API calls.</li>
-  <li><strong>IPC</strong>: Tauri's inter-process communication bridge passes JSON objects between Rust and React.</li>
-</ul>
+```
+src-tauri/target/release/bundle/
+  ├── msi/          ← Windows installer
+  ├── nsis/         ← Windows executable
+  └── macos/        ← macOS .app bundle
+```
 
-<h2>License</h2>
+---
 
-<p>GNU GPL v3. Open-source and free for personal use.</p>
+## Automated Builds (GitHub Actions)
+
+Every push to `main` automatically builds:
+
+- ✅ Windows x64 `.msi` installer
+- ✅ macOS Universal Binary `.dmg` (Intel + Apple Silicon)
+
+Releases are published as **draft releases** on the [Releases page](../../releases).
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│                VIGILANCE                        │
+├─────────────────────────────────────────────────┤
+│  [React + TypeScript UI]                        │
+│       ↕ Tauri IPC (JSON)                        │
+│  [Rust Backend Engine]                          │
+│       ├── Windows: GetExtendedTcpTable API      │
+│       ├── Process name lookup (SCM + OpenProc.) │
+│       ├── GeoIP lookup (MaxMind local DB)       │
+│       ├── Threat Intel (AbuseIPDB async)        │
+│       ├── Firewall rules (netsh advfirewall)    │
+│       └── Config loader (config.json)           │
+└─────────────────────────────────────────────────┘
+```
+
+| Layer | Technology |
+|---|---|
+| Backend engine | Rust 1.75+ |
+| App framework | Tauri 2.x |
+| Frontend | React 18 + TypeScript |
+| Styling | CSS |
+| Packet data | Windows: `GetExtendedTcpTable` API |
+| GeoIP | MaxMind GeoLite2 (local, offline) |
+| Threat Intel | AbuseIPDB REST API |
+| Database | SQLite (planned for persistent rules) |
+| CI/CD | GitHub Actions |
+
+---
+
+## Security & Privacy
+
+- **All data stays local** — no telemetry, no cloud sync, no account required
+- **API keys stored locally** in `config.json` — never hardcoded, never pushed to GitHub
+- **GeoIP lookups are offline** — the MaxMind database runs entirely on your machine
+- **AbuseIPDB calls are one-way** — only the remote IP is sent, nothing about you
+
+---
+
+## Business Model
+
+| Tier | Price | Who |
+|---|---|---|
+| Home | **Free forever** | Personal use, home networks |
+| Business | Coming soon | Multi-device, SIEM integration, compliance reports |
+
+---
+
+## Contributing
+
+Contributions are welcome. Please open an issue before submitting a large pull request.
+
+```bash
+# Fork the repo, create a branch, make your changes, open a PR
+git checkout -b feature/your-feature-name
+```
+
+---
+
+## License
+
+**GNU General Public License v3.0** — free to use, modify, and distribute.
+See [LICENSE](LICENSE) for full terms.
+
+---
+
+## Acknowledgements
+
+- [MaxMind GeoLite2](https://dev.maxmind.com/) — free GeoIP database
+- [AbuseIPDB](https://www.abuseipdb.com/) — free threat intelligence API
+- [Tauri](https://tauri.app/) — lightweight cross-platform app framework
+- [Rust](https://www.rust-lang.org/) — systems programming language
+
+---
+
+*Built from scratch. No code borrowed from LittleSnitch, GlassWire, or any other commercial product.*
