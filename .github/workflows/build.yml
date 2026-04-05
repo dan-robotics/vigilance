@@ -43,10 +43,9 @@ jobs:
         shell: bash
         run: dd if=/dev/zero bs=1 count=64 2>/dev/null > src-tauri/resources/GeoLite2-Country.mmdb || python3 -c "open('src-tauri/resources/GeoLite2-Country.mmdb','wb').write(bytes(64))"
 
-      - name: Create config.json with API key from secret
+      - name: Create empty config.json
         shell: bash
-        run: echo '{"abuseipdb_key":"${{ secrets.ABUSEIPDB_KEY }}","abuseipdb_enabled":true,"cache_hours":24,"threat_score_red":50,"threat_score_yellow":20}' > src-tauri/resources/config.json
-
+        run: echo '{"abuseipdb_key":null,"abuseipdb_enabled":false,"cache_hours":24,"threat_score_red":50,"threat_score_yellow":20}' > src-tauri/resources/config.json
       - name: Install frontend dependencies
         run: npm install
 
