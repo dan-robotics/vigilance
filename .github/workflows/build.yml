@@ -28,7 +28,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -39,6 +39,23 @@ jobs:
         if: matrix.platform == 'macos-latest'
         run: brew install libpcap
 
+      - name: Create dummy GeoIP database for build
+        shell: bash
+        run: |
+          mkdir -p src-tauri/resources
+          if [ ! -f src-tauri/resources/GeoLite2-Country.mmdb ]; then
+            dd if=/dev/zero bs=1 count=64 2>/dev/null | tr '\0' '\x00' > src-tauri/resources/GeoLite2-Country.mmdb
+            echo "Created placeholder GeoLite2-Country.mmdb for build"
+          fi
+
+      - name: Create dummy config for build
+        shell: bash
+        run: |
+          if [ ! -f src-tauri/resources/config.json ]; then
+            echo '{"abuseipdb_key":null,"abuseipdb_enabled":false,"cache_hours":24,"threat_score_red":50,"threat_score_yellow":20}' > src-tauri/resources/config.json
+            echo "Created placeholder config.json for build"
+          fi
+
       - name: Install frontend dependencies
         run: npm install
 
@@ -46,7 +63,6 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_SIGNING_IDENTITY: ""
         with:
           tagName: v__VERSION__
           releaseName: "Vigilance v__VERSION__"
@@ -55,12 +71,15 @@ jobs:
             
             ### Downloads
             - **Windows**: Download the `.msi` installer
-            - **macOS**: Download the `.dmg` file (Universal — works on Intel and Apple Silicon)
+            - **macOS**: Download the `.dmg` file (Universal — Intel + Apple Silicon)
+            
+            ### Setup after install
+            1. Download GeoLite2-Country.mmdb from MaxMind (free) and place in the app resources folder
+            2. Copy config.example.json to config.json and add your AbuseIPDB key (optional)
             
             ### Notes
             - Windows requires Administrator privileges for firewall blocking
-            - macOS requires allowing the app in System Preferences > Security on first run
-            - Add your AbuseIPDB key to the config file for threat intelligence
+            - macOS: right-click the app and choose Open on first launch
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
