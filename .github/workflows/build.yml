@@ -24,7 +24,7 @@ jobs:
       - name: setup node
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: 22 # Updated to Node 22 to resolve deprecation warnings
 
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -41,8 +41,15 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          # CRITICAL: This allows the macOS build to succeed without a paid Apple Developer account
+          TAURI_SKIP_SIGNING_MAC: true 
         with:
-          tagName: v__VERSION__ # tauri-action replaces this with the version from tauri.conf.json
+          tagName: v__VERSION__
           releaseName: "Vigilance v__VERSION__"
           releaseBody: "Automated release from GitHub Actions."
           releaseDraft: true
