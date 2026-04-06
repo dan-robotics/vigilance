@@ -47,8 +47,8 @@ It provides capabilities previously only available in expensive commercial tools
 | Platform | Status | Notes |
 |---|---|---|
 | Windows 10/11 x64 | ✅ Full support | Blocking via Windows Firewall (netsh) |
-| macOS Intel | ✅ Full support | Built via GitHub Actions |
-| macOS Apple Silicon | ✅ Full support | Universal binary |
+| macOS Intel | 🔜 Planned | Built via GitHub Actions | - Not working currently
+| macOS Apple Silicon | 🔜 Planned | Universal binary | - Not working currently
 | Raspberry Pi 4 ARM64 | 🔜 Planned | Headless web UI daemon |
 | Linux x64 | 🔜 Planned | |
 
