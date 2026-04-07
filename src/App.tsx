@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
@@ -25,7 +25,15 @@ function stateColor(state: string): string {
     case "LISTEN":      return "#4fc3f7";
     case "TIME_WAIT":   return "#ffa726";
     case "CLOSE_WAIT":  return "#ef5350";
+    case "SYN_SENT":    return "#ffb347";
+    case "SYN_RCVD":    return "#ffb347";
+    case "FIN_WAIT1":   return "#ff7f50";
+    case "FIN_WAIT2":   return "#ff7f50";
+    case "CLOSING":     return "#ff6b6b";
+    case "LAST_ACK":    return "#ff6b6b";
+    case "DELETE_TCB":  return "#b0bec5";
     case "CLOSED":      return "#666";
+    case "UNKNOWN":     return "#999";
     default:            return "#aaa";
   }
 }
@@ -51,10 +59,23 @@ export default function App() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [paused, setPaused] = useState(false);
   const [showThreatsOnly, setShowThreatsOnly] = useState(false);
+  
+  // Elevation state
+  const [unknownCount, setUnknownCount] = useState(0);
+  const [isElevatingProcess, setIsElevatingProcess] = useState(false);
+  const [elevatedResultsAvailable, setElevatedResultsAvailable] = useState(false);
 
   // Threat intel state
   const [threatScores, setThreatScores] = useState<Map<string, number>>(new Map());
   const [checkingThreat, setCheckingThreat] = useState<Set<string>>(new Set());
+
+  // Refs so async callbacks always read the latest state without stale closures
+  const connectionsRef = useRef<Connection[]>([]);
+  const threatScoresRef = useRef<Map<string, number>>(new Map());
+  const checkingThreatRef = useRef<Set<string>>(new Set());
+  useEffect(() => { connectionsRef.current = connections; }, [connections]);
+  useEffect(() => { threatScoresRef.current = threatScores; }, [threatScores]);
+  useEffect(() => { checkingThreatRef.current = checkingThreat; }, [checkingThreat]);
 
   // Run once on app startup to load existing firewall rules
   useEffect(() => {
@@ -67,16 +88,17 @@ export default function App() {
   }, []);
 
   async function checkThreat(ip: string) {
-    // Skip private / special IPs
+    // Skip private / special IPs and IPv6 link-local
     if (!ip || ip === "0.0.0.0"
       || ip.startsWith("127.")
       || ip.startsWith("192.168.")
       || ip.startsWith("10.")
       || ip.startsWith("100.")
-      || ip.startsWith("172.")) return;
+      || ip.startsWith("172.")
+      || ip.startsWith("fe80::")) return;
 
-    // Skip if already checked or currently checking
-    if (threatScores.has(ip) || checkingThreat.has(ip)) return;
+    // Skip if already checked or currently checking (use refs to avoid stale closure)
+    if (threatScoresRef.current.has(ip) || checkingThreatRef.current.has(ip)) return;
 
     setCheckingThreat(prev => new Set(prev).add(ip));
     try {
@@ -95,12 +117,59 @@ export default function App() {
     }
   }
 
+  async function refreshWithElevation() {
+    setIsElevatingProcess(true);
+    try {
+      const elevatedData = await invoke<Connection[]>("get_connections_elevated");
+      
+      // Merge elevated results with current connections via ref (avoids stale closure)
+      // Prefer elevated results where available, otherwise keep existing
+      const connMap = new Map<string, Connection>();
+      connectionsRef.current.forEach(c => connMap.set(`${c.local_addr}:${c.local_port}`, c));
+      elevatedData.forEach(c => connMap.set(`${c.local_addr}:${c.local_port}`, c));
+      const merged = Array.from(connMap.values());
+      setConnections(merged);
+      setElevatedResultsAvailable(true);
+      setLastUpdate(new Date().toLocaleTimeString());
+      
+      // Recount unknowns
+      const unknowns = merged.filter(c => c.process_name.startsWith("Unknown")).length;
+      setUnknownCount(unknowns);
+      
+      // Auto-check threats for elevated results
+      const uniqueIps = [...new Set(
+        merged
+          .filter(c =>
+            c.state === "ESTABLISHED" &&
+            c.remote_addr !== "0.0.0.0" &&
+            !c.remote_addr.startsWith("127.") &&
+            !c.remote_addr.startsWith("192.168.") &&
+            !c.remote_addr.startsWith("10.") &&
+            !c.remote_addr.startsWith("100.")
+          )
+          .map(c => c.remote_addr)
+      )];
+      uniqueIps.forEach(ip => checkThreat(ip));
+    } catch (e) {
+      alert(`Elevation failed: ${e}\n\nMake sure to allow sudo access when prompted.`);
+    } finally {
+      setIsElevatingProcess(false);
+    }
+  }
+
   const fetchConnections = useCallback(async () => {
-    if (paused) return;
+    if (paused || elevatedResultsAvailable) return;
     try {
       const data = await invoke<Connection[]>("get_connections");
       setConnections(data);
       setLastUpdate(new Date().toLocaleTimeString());
+      
+      // Count unknown processes
+      const unknowns = data.filter(c => c.process_name.startsWith("Unknown")).length;
+      setUnknownCount(unknowns);
+      
+      // Reset elevation flag on normal refresh to allow re-elevation if new unknowns appear
+      setElevatedResultsAvailable(false);
 
       // Auto-check threat intel for unique external established IPs
       const uniqueIps = [...new Set(
@@ -119,7 +188,7 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
-  }, [paused]);
+  }, [paused, elevatedResultsAvailable]);
 
   useEffect(() => {
     fetchConnections();
@@ -169,42 +238,49 @@ export default function App() {
   }
 
   // Filter
+ const normalizedFilter = filter.trim().toLowerCase();
   let filtered = connections.filter(c => {
-    // 1. Process Button Filters FIRST
-    const isLoopback = c.remote_addr === "127.0.0.1" || c.local_addr === "127.0.0.1";
-    if (hideLoopback && isLoopback) return false;
-    
-    if (!isLoopback || hideLoopback) {
-      if (hideListen && c.state === "LISTEN") return false;
-      if (hideEstablished && c.state === "ESTABLISHED") return false;
-      if (hideTimeWait && c.state === "TIME_WAIT") return false;
-      if (hideCloseWait && c.state === "CLOSE_WAIT") return false;
-      if (hideSyn && (c.state === "SYN_SENT" || c.state === "SYN_RCVD")) return false;
-      if (hideOther && (
-        c.state === "FIN_WAIT1" || c.state === "FIN_WAIT2" ||
-        c.state === "CLOSING"   || c.state === "LAST_ACK"  ||
-        c.state === "CLOSED"    || c.state === "DELETE_TCB" ||
-        c.state === "UNKNOWN"
-      )) return false;
-    }
+    const localAddr = c.local_addr.trim().toLowerCase();
+    const remoteAddr = c.remote_addr.trim().toLowerCase();
+    const isLoopback = localAddr === "::1" || remoteAddr === "::1"
+      || localAddr.startsWith("127.") || remoteAddr.startsWith("127.")
+      || localAddr === "localhost" || remoteAddr === "localhost";
 
-    // 2. Process Threat Filter
+    // If loopback is hidden — remove all loopback connections
+    if (hideLoopback && isLoopback) return false;
+
+    // State filters — only apply to non-loopback connections
+    // This prevents state buttons from hiding loopback when loopback is visible
+    // State filters — apply to ALL connections including loopback
+    if (hideListen      && c.state === "LISTEN")      return false;
+    if (hideEstablished && c.state === "ESTABLISHED")  return false;
+    if (hideTimeWait    && c.state === "TIME_WAIT")    return false;
+    if (hideCloseWait   && c.state === "CLOSE_WAIT")   return false;
+    if (hideSyn && (c.state === "SYN_SENT" || c.state === "SYN_RCVD")) return false;
+    if (hideOther && (
+      c.state === "FIN_WAIT1" || c.state === "FIN_WAIT2" ||
+      c.state === "CLOSING"   || c.state === "LAST_ACK"  ||
+      c.state === "CLOSED"    || c.state === "DELETE_TCB" ||
+      c.state === "UNKNOWN"
+    )) return false;
+
+    // Threat filter
     if (showThreatsOnly) {
       const score = threatScores.get(c.remote_addr) ?? 0;
       if (score < 20) return false;
     }
 
-    // 3. Process Text Filter LAST
-    if (filter === "") return true;
-    
+    // Text filter
+    if (normalizedFilter === "") return true;
+
     return (
-      c.process_name.toLowerCase().includes(filter.toLowerCase()) ||
-      c.remote_addr.includes(filter) ||
-      c.local_addr.includes(filter) ||
-      String(c.remote_port).includes(filter) ||
-      String(c.local_port).includes(filter) ||
-      c.state.toLowerCase().includes(filter.toLowerCase()) ||
-      c.country_code.toLowerCase().includes(filter.toLowerCase())
+      c.process_name.toLowerCase().includes(normalizedFilter) ||
+      remoteAddr.includes(normalizedFilter) ||
+      localAddr.includes(normalizedFilter) ||
+      String(c.remote_port).includes(normalizedFilter) ||
+      String(c.local_port).includes(normalizedFilter) ||
+      c.state.toLowerCase().includes(normalizedFilter) ||
+      c.country_code.toLowerCase().includes(normalizedFilter)
     );
   });
 
@@ -262,31 +338,31 @@ export default function App() {
           onChange={e => setFilter(e.target.value)}
         />
         <button className={`toggle-btn ${hideLoopback ? "active" : ""}`}
-          onClick={() => setHideLoopback(v => !v)} title="Hide 127.0.0.1 loopback">
+          onClick={() => setHideLoopback(v => !v)} title="Hide loopback connections">
           {hideLoopback ? "🔴" : "🟢"} Loopback
         </button>
         <button className={`toggle-btn ${hideListen ? "active" : ""}`}
-          onClick={() => setHideListen(v => !v)} title="Hide LISTEN ports">
+          onClick={() => setHideListen(v => !v)} title="Hide LISTEN connections">
           {hideListen ? "🔴" : "🟢"} Listeners
         </button>
         <button className={`toggle-btn ${hideEstablished ? "active" : ""}`}
-          onClick={() => setHideEstablished(v => !v)} title="Hide ESTABLISHED">
+          onClick={() => setHideEstablished(v => !v)} title="Hide ESTABLISHED connections">
           {hideEstablished ? "🔴" : "🟢"} Established
         </button>
         <button className={`toggle-btn ${hideTimeWait ? "active" : ""}`}
-          onClick={() => setHideTimeWait(v => !v)} title="Hide TIME_WAIT">
+          onClick={() => setHideTimeWait(v => !v)} title="Hide TIME_WAIT connections">
           {hideTimeWait ? "🔴" : "🟢"} Time Wait
         </button>
         <button className={`toggle-btn ${hideCloseWait ? "active" : ""}`}
-          onClick={() => setHideCloseWait(v => !v)} title="Hide CLOSE_WAIT">
+          onClick={() => setHideCloseWait(v => !v)} title="Hide CLOSE_WAIT connections">
           {hideCloseWait ? "🔴" : "🟢"} Close Wait
         </button>
         <button className={`toggle-btn ${hideSyn ? "active" : ""}`}
-          onClick={() => setHideSyn(v => !v)} title="Hide SYN_SENT and SYN_RCVD">
+          onClick={() => setHideSyn(v => !v)} title="Hide SYN_SENT and SYN_RCVD connections">
           {hideSyn ? "🔴" : "🟢"} SYN
         </button>
         <button className={`toggle-btn ${hideOther ? "active" : ""}`}
-          onClick={() => setHideOther(v => !v)} title="Hide FIN_WAIT, CLOSING, LAST_ACK">
+          onClick={() => setHideOther(v => !v)} title="Hide FIN_WAIT, CLOSING, LAST_ACK, CLOSED or UNKNOWN connections">
           {hideOther ? "🔴" : "🟢"} Other
         </button>
         <button
@@ -301,6 +377,19 @@ export default function App() {
           {paused ? "▶ Resume" : "⏸ Pause"}
         </button>
         <button className="refresh-btn" onClick={fetchConnections}>⟳ Refresh</button>
+        {unknownCount >= 2 && !elevatedResultsAvailable && (
+          <button 
+            className="elevation-btn" 
+            onClick={refreshWithElevation}
+            disabled={isElevatingProcess}
+            title={`${unknownCount} processes unknown — click to refresh with elevation`}
+          >
+            {isElevatingProcess ? "🔒 Elevating..." : "🔒 Refresh with Elevation"}
+          </button>
+        )}
+        {elevatedResultsAvailable && (
+          <span className="elevation-badge" title="Elevated privileges used">✓ Elevated</span>
+        )}
         <button className="reset-btn" onClick={() => {
           setHideLoopback(false); setHideListen(false);
           setHideEstablished(false); setHideTimeWait(false);
@@ -345,12 +434,11 @@ export default function App() {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 && (
+            {filtered.length === 0 ? (
               <tr>
                 <td colSpan={8} className="empty">No connections match your filter</td>
               </tr>
-            )}
-            {filtered.map((c, i) => {
+            ) : filtered.map((c) => {
               // Check against the IP address, since that's what Windows blocks
               const isBlocked = blocked.has(c.remote_addr);
               const score = threatScores.get(c.remote_addr);
@@ -358,7 +446,8 @@ export default function App() {
               const isPrivate = c.country_code === "LAN" || c.remote_addr === "0.0.0.0";
 
               return (
-                <tr key={i} className={
+                <tr key={`${c.pid}-${c.local_addr}:${c.local_port}-${c.remote_addr}:${c.remote_port}-${c.state}`}
+                className={
                   isBlocked ? "row-blocked" :
                   (score ?? 0) >= 50 ? "row-threat-high" :
                   (score ?? 0) >= 20 ? "row-threat-medium" :

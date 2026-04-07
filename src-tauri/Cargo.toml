@@ -1,8 +1,8 @@
 [package]
 name = "vigilance"
-version = "0.1.0"
+version = "0.1.1"
 description = "Vigilance Network Monitor"
-authors = ["you"]
+authors = ["Daniel Andries paradigm.ux@icloud.com"]
 edition = "2021"
 
 [lib]

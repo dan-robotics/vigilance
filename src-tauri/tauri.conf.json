@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "vigilance",
-  "version": "0.1.0",
-  "identifier": "vigilance",
+  "version": "0.1.1",
+  "identifier": "com.danrobotics.vigilance",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -15,7 +15,8 @@
         "title": "Vigilance — Network Monitor",
         "width": 1400,
         "height": 800,
-        "resizable": true
+        "resizable": true,
+        "devtools": false
       }
     ],
     "security": {
@@ -26,9 +27,9 @@
     "active": true,
     "targets": "all",
     "resources": {
-    "resources/GeoLite2-Country.mmdb": "resources/GeoLite2-Country.mmdb",
-    "resources/config.example.json": "resources/config.example.json",
-    "resources/config.json": "resources/config.json"
+    "resources/GeoLite2-Country.mmdb": "GeoLite2-Country.mmdb",
+    "resources/config.example.json": "config.example.json",
+    "resources/config.json": "config.json"
 },
     "icon": [
       "icons/32x32.png",
