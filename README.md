@@ -197,7 +197,6 @@ Releases are published as **draft releases** on the [Releases page](../../releas
 | Tier | Price | Who |
 |---|---|---|
 | Home | **Free forever** | Personal use, home networks |
-| Business | Coming soon | Multi-device, SIEM integration, compliance reports |
 
 ---
 
