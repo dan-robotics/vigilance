@@ -20,6 +20,8 @@ It provides capabilities previously only available in expensive commercial tools
 ## Screenshots
 
 > Real-time connection table with process names, GeoIP, threat scores and one-click blocking.
+<img width="1907" height="1024" alt="image" src="https://github.com/user-attachments/assets/7ba826d2-1b99-49f9-8bed-da7495295ff0" />
+
 
 ---
 
