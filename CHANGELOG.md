@@ -6,7 +6,7 @@ Format: `[Version] — Date — Platform — Category: Description`
 
 ---
 
-## [0.1.1] — April 2026
+## [0.1.2] — April 2026
 
 ### macOS — New Platform Support
 - Added full macOS network capture engine using `netstat` + `lsof`
