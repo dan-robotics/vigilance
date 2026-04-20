@@ -1,4 +1,4 @@
-# Vigilance — Changelog
+# Vigilance Net — Changelog
 
 All notable changes to this project are documented in this file.
 
@@ -7,6 +7,34 @@ Format: `[Version] — Date — Platform — Category: Description`
 ---
 
 ## [0.1.2] — April 2026
+
+> **This release replaces all previous builds. Please delete any older installers you have downloaded.**
+>
+> Previous releases (v0.1.0, v0.1.1) were built with a configuration file bundled inside the installer that contained an API key. That key has been revoked and is no longer valid. This was an oversight during early development — no user data was exposed.
+
+### Security
+- Removed bundled API key from distributed installers — `config.json` now ships with placeholder values only. Users add their own AbuseIPDB key after installation.
+
+### Distribution
+- App renamed to **Vigilance Net** for clearer identification alongside Vigilance Desktop.
+- Installers now ship with a clean placeholder `config.json` — add your own AbuseIPDB key after install.
+- Bundled `README.txt` inside the app with setup instructions, config reference, license, and contact info.
+- Version aligned across `tauri.conf.json`, `Cargo.toml`, and `package.json`.
+
+### Downloads — v0.1.2
+
+| File | Platform | SHA256 |
+|---|---|---|
+| `Vigilance-Net_0.1.2_x64_en-US.msi` | Windows Installer | `a0b3a7d47af1801c37992817516419973dca0b640657fd9faf7dfae2d52b579d` |
+| `Vigilance-Net_0.1.2_x64-setup.exe` | Windows NSIS | `7d3dbf8cd890e824f49ffe65281362e0db25dc82386c89709845c9120b9b547f` |
+| `Vigilance.Net_0.1.2_universal.dmg` | macOS Universal (Intel + Apple Silicon) | `8d7757aad3ed3837689b5048a150d630339451d3a9aae595daa43f4eade13d84` |
+| `Vigilance.Net_0.1.2_x64.dmg` | macOS Intel | `803f70521f047527986db927f88409add1cbef6f83fed6582c83387ca08a9ffa` |
+| `Vigilance.Net_0.1.2_aarch64.dmg` | macOS Apple Silicon | `1f6e2663d2a0b6f959548b96d8db0749f92e1935c70a7e9311e973afd8f37d44` |
+| `Vigilance.Net.app.zip` | macOS Portable | `b14c29dd94bb47536478d1fcd3679438cb3a4951cb8751f6d5874a806a464afd` |
+
+---
+
+## [0.1.1] — April 2026
 
 ### macOS — New Platform Support
 - Added full macOS network capture engine using `netstat` + `lsof`
